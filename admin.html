@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Woofie Admin</title>
+    <link rel="stylesheet" href="p.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="admin-container">
+        <h1>Woofie Admin Panel</h1>
+        
+        <div class="admin-actions">
+            <h2>Add New Movie</h2>
+            <form id="addMovieForm">
+                <div class="form-group">
+                    <label for="movieTitle">Title</label>
+                    <input type="text" id="movieTitle" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="moviePoster">Poster Image</label>
+                    <input type="file" id="moviePoster" accept="image/*" required>
+                    <div class="image-preview" id="imagePreview">
+                        <img id="previewImage" src="" alt="Preview" style="display: none;">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="movieLink">Download Link</label>
+                    <input type="url" id="movieLink" required>
+                </div>
+                
+                <button type="submit" class="submit-btn">Add Movie</button>
+            </form>
+            
+            <h2>Example Movies</h2>
+            <div class="movie-list" id="exampleMovies">
+                <!-- Example movies will be loaded here -->
+            </div>
+
+            <h2>Your Movies</h2>
+            <div class="movie-list" id="adminMovieList">
+                <!-- Movies will be loaded here with delete buttons -->
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-storage-compat.js"></script>
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAtt5SiiG9ZizbrQqW5WZAbkygAi7T62_s",
+            authDomain: "woofie-ed911.firebaseapp.com",
+            projectId: "woofie-ed911",
+            storageBucket: "woofie-ed911.firebasestorage.app",
+            messagingSenderId: "107444516088",
+            appId: "1:107444516088:web:1d93071a98ef7d2181b70d",
+            measurementId: "G-7KBZ4KE4DK"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const storage = firebase.storage();
+
+        // Example movies data
+        const exampleMovies = [
+            {
+                title: "The Dark Knight",
+                poster: "https://images.unsplash.com/photo-1531259683007-016a7b628fc3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
+                downloadLink: "#"
+            },
+            {
+                title: "Inception",
+                poster: "https://images.unsplash.com/photo-1534447677768-be436bb09401?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
+                downloadLink: "#"
+            },
+            {
+                title: "Interstellar",
+                poster: "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
+                downloadLink: "#"
+            },
+            {
+                title: "The Matrix",
+                poster: "https://images.unsplash.com/photo-1511512578047-dfb367046420?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
+                downloadLink: "#"
+            },
+            {
+                title: "Pulp Fiction",
+                poster: "https://images.unsplash.com/photo-1534447677768-be436bb09401?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80",
+                downloadLink: "#"
+            }
+        ];
+
+        // Load example movies
+        function loadExampleMovies() {
+            const exampleMoviesContainer = document.getElementById('exampleMovies');
+            exampleMoviesContainer.innerHTML = '';
+            
+            exampleMovies.forEach(movie => {
+                const movieItem = document.createElement('div');
+                movieItem.className = 'admin-movie-item';
+                movieItem.innerHTML = `
+                    <div class="admin-movie-info">
+                        <img src="${movie.poster}" alt="${movie.title}" class="admin-movie-poster">
+                        <span>${movie.title}</span>
+                    </div>
+                    <button class="submit-btn" onclick="addExampleMovie('${movie.title}', '${movie.poster}', '${movie.downloadLink}')">Add to Collection</button>
+                `;
+                exampleMoviesContainer.appendChild(movieItem);
+            });
+        }
+
+        // Add example movie to collection
+        function addExampleMovie(title, poster, downloadLink) {
+            db.collection("movies").add({
+                title: title,
+                poster: poster,
+                downloadLink: downloadLink
+            }).then(() => {
+                alert("Movie added successfully!");
+                loadMoviesForAdmin();
+            }).catch((error) => {
+                console.error("Error adding movie: ", error);
+                alert("Error adding movie. Please try again.");
+            });
+        }
+
+        // Image preview functionality
+        document.getElementById('moviePoster').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const previewImage = document.getElementById('previewImage');
+                    previewImage.src = e.target.result;
+                    previewImage.style.display = 'block';
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Add movie form
+        document.getElementById('addMovieForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const title = document.getElementById('movieTitle').value;
+            const file = document.getElementById('moviePoster').files[0];
+            const downloadLink = document.getElementById('movieLink').value;
+            
+            if (!file) {
+                alert('Please select an image');
+                return;
+            }
+
+            // Show loading state
+            const submitBtn = document.querySelector('.submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Uploading...';
+
+            try {
+                console.log("Starting upload process...");
+                
+                // Create a unique filename
+                const timestamp = Date.now();
+                const filename = `${timestamp}_${file.name}`;
+                console.log("Generated filename:", filename);
+                
+                // Create storage reference
+                const storageRef = storage.ref();
+                const fileRef = storageRef.child(`posters/${filename}`);
+                console.log("Storage reference created");
+                
+                // Upload the file
+                console.log("Starting file upload...");
+                const uploadTask = fileRef.put(file);
+                
+                // Monitor upload progress
+                uploadTask.on('state_changed', 
+                    (snapshot) => {
+                        // Progress monitoring
+                        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                        console.log('Upload progress:', progress + '%');
+                        submitBtn.textContent = `Uploading... ${Math.round(progress)}%`;
+                    },
+                    (error) => {
+                        console.error("Upload error:", error);
+                        alert("Error uploading image: " + error.message);
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Add Movie';
+                    },
+                    async () => {
+                        try {
+                            console.log("Upload complete, getting download URL...");
+                            // Get download URL
+                            const posterUrl = await fileRef.getDownloadURL();
+                            console.log("Download URL obtained:", posterUrl);
+                            
+                            // Add movie to Firestore
+                            console.log("Adding movie to Firestore...");
+                            await db.collection("movies").add({
+                                title: title,
+                                poster: posterUrl,
+                                downloadLink: downloadLink,
+                                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                            });
+                            
+                            console.log("Movie added successfully");
+                            alert("Movie added successfully!");
+                            document.getElementById('addMovieForm').reset();
+                            document.getElementById('previewImage').style.display = 'none';
+                            loadMoviesForAdmin();
+                        } catch (error) {
+                            console.error("Error after upload:", error);
+                            alert("Error adding movie: " + error.message);
+                        } finally {
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = 'Add Movie';
+                        }
+                    }
+                );
+            } catch (error) {
+                console.error("Error in upload process:", error);
+                alert("Error: " + error.message);
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Add Movie';
+            }
+        });
+
+        // Load movies with delete buttons
+        function loadMoviesForAdmin() {
+            const movieList = document.getElementById('adminMovieList');
+            movieList.innerHTML = '';
+            
+            db.collection("movies").get().then((querySnapshot) => {
+                querySnapshot.forEach((doc) => {
+                    const movie = doc.data();
+                    const movieId = doc.id;
+                    
+                    const movieItem = document.createElement('div');
+                    movieItem.className = 'admin-movie-item';
+                    movieItem.innerHTML = `
+                        <div class="admin-movie-info">
+                            <img src="${movie.poster}" alt="${movie.title}" class="admin-movie-poster">
+                            <span>${movie.title}</span>
+                        </div>
+                        <div class="admin-movie-actions">
+                            <button class="delete-btn" data-id="${movieId}">
+                                <span class="delete-icon">🗑️</span>
+                                Delete
+                            </button>
+                        </div>
+                    `;
+                    
+                    movieList.appendChild(movieItem);
+                });
+                
+                // Add event listeners to delete buttons
+                document.querySelectorAll('.delete-btn').forEach(button => {
+                    button.addEventListener('click', async (e) => {
+                        const movieId = e.currentTarget.getAttribute('data-id');
+                        const movieTitle = e.currentTarget.closest('.admin-movie-item').querySelector('span').textContent;
+                        
+                        if (confirm(`Are you sure you want to delete "${movieTitle}"? This action cannot be undone.`)) {
+                            try {
+                                // Show loading state
+                                e.currentTarget.disabled = true;
+                                e.currentTarget.innerHTML = '<span class="loading-icon">⏳</span> Deleting...';
+                                
+                                // Get the movie data first
+                                const movieDoc = await db.collection("movies").doc(movieId).get();
+                                const movie = movieDoc.data();
+                                
+                                // Delete the image from Storage
+                                const imageUrl = movie.poster;
+                                const imageRef = storage.refFromURL(imageUrl);
+                                await imageRef.delete();
+                                
+                                // Delete the movie document
+                                await db.collection("movies").doc(movieId).delete();
+                                
+                                // Show success message
+                                const movieItem = e.currentTarget.closest('.admin-movie-item');
+                                movieItem.style.opacity = '0';
+                                movieItem.style.transform = 'translateX(-20px)';
+                                setTimeout(() => {
+                                    loadMoviesForAdmin();
+                                }, 300);
+                                
+                            } catch (error) {
+                                console.error("Error deleting movie: ", error);
+                                alert("Error deleting movie. Please try again.");
+                                e.currentTarget.disabled = false;
+                                e.currentTarget.innerHTML = '<span class="delete-icon">🗑️</span> Delete';
+                            }
+                        }
+                    });
+                });
+            });
+        }
+
+        // Load movies when admin page opens
+        document.addEventListener('DOMContentLoaded', () => {
+            loadExampleMovies();
+            loadMoviesForAdmin();
+        });
+    </script>
+</body>
+</html>
