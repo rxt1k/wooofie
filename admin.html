@@ -159,49 +159,57 @@
 
             // Show loading state
             const submitBtn = document.querySelector('.submit-btn');
+            const originalBtnText = submitBtn.textContent;
             submitBtn.disabled = true;
-            submitBtn.textContent = 'Uploading...';
+            submitBtn.innerHTML = `
+                <div class="upload-progress">
+                    <span class="progress-text">Uploading...</span>
+                    <div class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+                </div>
+            `;
 
             try {
-                console.log("Starting upload process...");
-                
-                // Create a unique filename
+                // Create a unique filename with optimized format
                 const timestamp = Date.now();
-                const filename = `${timestamp}_${file.name}`;
-                console.log("Generated filename:", filename);
+                const fileExtension = file.name.split('.').pop().toLowerCase();
+                const filename = `${timestamp}.${fileExtension}`;
                 
                 // Create storage reference
                 const storageRef = storage.ref();
                 const fileRef = storageRef.child(`posters/${filename}`);
-                console.log("Storage reference created");
                 
-                // Upload the file
-                console.log("Starting file upload...");
-                const uploadTask = fileRef.put(file);
+                // Upload the file with metadata for better performance
+                const metadata = {
+                    contentType: file.type,
+                    cacheControl: 'public, max-age=31536000'
+                };
+                
+                const uploadTask = fileRef.put(file, metadata);
                 
                 // Monitor upload progress
                 uploadTask.on('state_changed', 
                     (snapshot) => {
-                        // Progress monitoring
                         const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                        console.log('Upload progress:', progress + '%');
-                        submitBtn.textContent = `Uploading... ${Math.round(progress)}%`;
+                        const progressFill = submitBtn.querySelector('.progress-fill');
+                        const progressText = submitBtn.querySelector('.progress-text');
+                        
+                        progressFill.style.width = `${progress}%`;
+                        progressText.textContent = `Uploading... ${Math.round(progress)}%`;
                     },
                     (error) => {
                         console.error("Upload error:", error);
                         alert("Error uploading image: " + error.message);
                         submitBtn.disabled = false;
-                        submitBtn.textContent = 'Add Movie';
+                        submitBtn.textContent = originalBtnText;
                     },
                     async () => {
                         try {
-                            console.log("Upload complete, getting download URL...");
                             // Get download URL
                             const posterUrl = await fileRef.getDownloadURL();
-                            console.log("Download URL obtained:", posterUrl);
                             
                             // Add movie to Firestore
-                            console.log("Adding movie to Firestore...");
                             await db.collection("movies").add({
                                 title: title,
                                 poster: posterUrl,
@@ -209,17 +217,22 @@
                                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
                             });
                             
-                            console.log("Movie added successfully");
-                            alert("Movie added successfully!");
+                            // Show success state
+                            submitBtn.innerHTML = '<span class="success-icon">✅</span> Movie Added!';
+                            setTimeout(() => {
+                                submitBtn.disabled = false;
+                                submitBtn.textContent = originalBtnText;
+                            }, 2000);
+                            
+                            // Reset form
                             document.getElementById('addMovieForm').reset();
                             document.getElementById('previewImage').style.display = 'none';
                             loadMoviesForAdmin();
                         } catch (error) {
                             console.error("Error after upload:", error);
                             alert("Error adding movie: " + error.message);
-                        } finally {
                             submitBtn.disabled = false;
-                            submitBtn.textContent = 'Add Movie';
+                            submitBtn.textContent = originalBtnText;
                         }
                     }
                 );
@@ -227,7 +240,7 @@
                 console.error("Error in upload process:", error);
                 alert("Error: " + error.message);
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Add Movie';
+                submitBtn.textContent = originalBtnText;
             }
         });
 
