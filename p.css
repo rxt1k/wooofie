@@ -301,6 +301,18 @@ main {
     .image-preview img {
         max-height: 200px;
     }
+
+    .upload-progress {
+        gap: 0.25rem;
+    }
+    
+    .progress-text {
+        font-size: 0.8rem;
+    }
+    
+    input[type="file"] {
+        padding: 0.5rem;
+    }
 }
 
 /* Small Mobile Devices */
@@ -625,13 +637,15 @@ input:focus {
 }
 
 input[type="file"] {
-    padding: 0.5rem;
-    border: 1px solid var(--border-color);
-    border-radius: 0.5rem;
-    background-color: var(--card-background);
-    color: var(--text-primary);
-    width: 100%;
-    cursor: pointer;
+    padding: 0.75rem;
+    border: 2px dashed var(--border-color);
+    background-color: rgba(255, 255, 255, 0.02);
+    transition: all 0.3s ease;
+}
+
+input[type="file"]:hover {
+    border-color: var(--primary-color);
+    background-color: rgba(255, 255, 255, 0.05);
 }
 
 input[type="file"]::-webkit-file-upload-button {
@@ -641,13 +655,11 @@ input[type="file"]::-webkit-file-upload-button {
     border: none;
     border-radius: 0.25rem;
     cursor: pointer;
-    margin-right: 1rem;
     transition: all 0.3s ease;
 }
 
 input[type="file"]::-webkit-file-upload-button:hover {
     background-color: var(--primary-hover);
-    transform: translateY(-2px);
 }
 
 /* Loading state for upload button */
@@ -690,4 +702,48 @@ input[type="file"]::-webkit-file-upload-button:hover {
 
 ::-webkit-scrollbar-thumb:hover {
     background: var(--primary-hover);
+}
+
+.upload-progress {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 4px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-color), var(--primary-hover));
+    width: 0;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.success-icon {
+    margin-right: 0.5rem;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
